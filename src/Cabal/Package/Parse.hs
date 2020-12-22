@@ -14,7 +14,7 @@ import           Control.Exception                             (Exception (..), 
 import           Data.ByteString                               (ByteString)
 import qualified Data.ByteString                        as BS
 import qualified Data.ByteString.Char8                  as BS8
-import           Data.Foldable                                 (for_)
+import           Data.Foldable
 --import           Data.List.NonEmpty                            (NonEmpty)
 import           Data.Typeable                                 (Typeable)
 import           Distribution.Simple.Utils                     (fromUTF8BS)
@@ -65,7 +65,7 @@ readPackage fp = do
 -- | Parse @.cabal@ file.
 parsePackage :: FilePath -> ByteString -> Either (ParseError []) C.GenericPackageDescription
 parsePackage fp contents = case C.runParseResult $ C.parseGenericPackageDescription contents of
-    (ws, Left (_mv, errs)) -> Left $ ParseError fp contents errs ws
+    (ws, Left (_mv, errs)) -> Left $ ParseError fp contents (toList errs) ws
     (_, Right gpd)         -> Right gpd
 
 
@@ -80,7 +80,7 @@ parseWith
     -> Either (ParseError []) a
 parseWith parser fp bs = case C.runParseResult result of
     (_, Right x)       -> return x
-    (ws, Left (_, es)) -> Left $ ParseError fp bs es ws
+    (ws, Left (_, es)) -> Left $ ParseError fp bs (toList es) ws
   where
     result = case C.readFields' bs of
         Left perr -> C.parseFatalFailure pos (show perr) where

@@ -1,17 +1,23 @@
+cabal-version:      2.2
+category:           Tool
+build-type:         Simple
 name:               cabal-lower-bounds
 version:            0.1
-license:            BSD3
-license-file:       LICENCE
+
 author:             Alex Washburn
-maintainer:         Alex Washburn
+maintainer:         github@recursion.ninja
+license:            BSD-3-Clause
+license-file:       LICENSE
 copyright:          Copyright (C) 2020 Alex Washburn
-synopsis:           Collect the lower bounds of all dependencies of a cabal project
-category:           Data
 homepage:           https://github.com/recursion-ninja/cabal-lower-bounds
 bug-reports:        https://github.com/recursion-ninja/cabal-lower-bounds/issues
-cabal-version:      >= 1.10
-build-type:         Simple
-extra-source-files: changelog
+
+synopsis:           Collect the lower bounds of all dependencies of a cabal project
+
+description:        Read in a cabal file and collect the lower bounds of all dependencies.
+                    Output the lower bounds in a format that is easy to convert into a project file.
+                    
+
 tested-with:
   GHC==8.10.3,
   GHC==8.8.4,
