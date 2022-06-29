@@ -13,7 +13,7 @@ import           Distribution.Types.Dependency
 import           Distribution.Types.GenericPackageDescription        (GenericPackageDescription(..))
 import           Distribution.Types.PackageDescription               (testedWith)
 import           Distribution.Types.Version
-import           Distribution.Types.VersionRange.Internal
+import           Distribution.Types.VersionRange
 import           Data.Foldable
 import           Data.Map.Strict                                     (Map, (!))
 import qualified Data.Map.Strict                              as Map
@@ -94,15 +94,24 @@ baseVersionToGHC = Map.fromList $ (mkVersion *** mkVersion) <$> mapping
 
 
 versionLowerBound :: VersionRange -> Version
-versionLowerBound AnyVersion             = mkVersion [0,0,0]
-versionLowerBound (ThisVersion        v) = v
-versionLowerBound (LaterVersion       v) = v
-versionLowerBound (OrLaterVersion     v) = v
-versionLowerBound (EarlierVersion     v) = mkVersion [0,0,0]
-versionLowerBound (OrEarlierVersion   v) = mkVersion [0,0,0]
-versionLowerBound (WildcardVersion    v) = v
-versionLowerBound (MajorBoundVersion  v) = v
-versionLowerBound (VersionRangeParens v) = versionLowerBound v
-versionLowerBound (UnionVersionRanges     v1 v2) = min (versionLowerBound v1) $ versionLowerBound v2
-versionLowerBound (IntersectVersionRanges v1 v2) = max (versionLowerBound v1) $ versionLowerBound v2
+versionLowerBound vRange =
+    let computeRange :: VersionRangeF Version -> Version
+        computeRange = \case
+            ThisVersionF            v -> v
+            LaterVersionF           v -> v
+            OrLaterVersionF         v -> v
+            EarlierVersionF         v -> defaultRange
+            OrEarlierVersionF       v -> defaultRange
+            MajorBoundVersionF      v -> v
+            UnionVersionRangesF     x y -> min x y
+            IntersectVersionRangesF x y -> min x y
 
+        defaultRange :: Version
+        defaultRange = mkVersion [0,0,0]
+
+        extractRange :: VersionRange -> Version
+        extractRange = cataVersionRange computeRange
+
+    in  if isAnyVersion vRange
+        then defaultRange
+        else extractRange vRange

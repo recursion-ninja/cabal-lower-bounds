@@ -2,7 +2,7 @@ cabal-version:      2.2
 category:           Tool
 build-type:         Simple
 name:               cabal-lower-bounds
-version:            0.1
+version:            0.2
 
 author:             Alex Washburn
 maintainer:         github@recursion.ninja
@@ -19,6 +19,8 @@ description:        Read in a cabal file and collect the lower bounds of all dep
                     
 
 tested-with:
+  GHC==9.2.3,
+  GHC==9.0.2,
   GHC==8.10.3,
   GHC==8.8.4,
   GHC==8.6.5,
