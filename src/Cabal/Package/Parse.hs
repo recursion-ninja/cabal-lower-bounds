@@ -1,5 +1,6 @@
-{-# LANGUAGE DeriveGeneric        #-}
-{-# LANGUAGE StandaloneDeriving   #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Cabal.Package.Parse
@@ -15,18 +16,14 @@ import           Data.ByteString                               (ByteString)
 import qualified Data.ByteString                        as BS
 import qualified Data.ByteString.Char8                  as BS8
 import           Data.Foldable
---import           Data.List.NonEmpty                            (NonEmpty)
 import           Data.Typeable                                 (Typeable)
 import           Distribution.Simple.Utils                     (fromUTF8BS)
 import           GHC.Generics                                  (Generic)
 import           System.FilePath                               (normalise)
 import qualified Distribution.Fields                    as C
-import qualified Distribution.Fields.LexerMonad         as C
 import qualified Distribution.Parsec                    as C
 import qualified Distribution.PackageDescription        as C
 import qualified Distribution.PackageDescription.Parsec as C
-import qualified Distribution.Utils.Generic             as C
-import qualified Text.Parsec                            as P
 
 
 -- |
@@ -37,10 +34,10 @@ data ParseError f = ParseError
     , peErrors   :: f C.PError
     , peWarnings :: [C.PWarning]
     }
-    deriving (Generic)
+    deriving stock (Generic)
 
 
-deriving instance (Show (f C.PError)) => Show (ParseError f)
+deriving stock instance (Show (f C.PError)) => Show (ParseError f)
 
 
 instance (Foldable f, Show (f C.PError), Typeable f) => Exception (ParseError f) where
@@ -69,6 +66,7 @@ parsePackage fp contents = case C.runParseResult $ C.parseGenericPackageDescript
     (_, Right gpd)         -> Right gpd
 
 
+{-
 -- | Parse the contents using provided parser from 'C.Field' list.
 --
 -- This variant doesn't return any warnings in the successful case.
@@ -91,6 +89,7 @@ parseWith parser fp bs = case C.runParseResult result of
             for_ (C.validateUTF8 bs) $ \pos ->
                 C.parseWarning C.zeroPos C.PWTUTF $ "UTF8 encoding problem at byte offset " ++ show pos
             parser fields
+-}
 
 
 -- | Render parse error highlighting the part of the input file.
@@ -112,6 +111,7 @@ renderParseError (ParseError filepath contents errors warnings)
     -- contents, line number, whether it's empty line
     rows :: [(String, Int, Bool)]
     rows = zipWith f (BS8.lines contents) [1..] where
+        f :: ByteString -> b -> (String, b, Bool)
         f bs i = let s = fromUTF8BS bs in (s, i, isEmptyOrComment s)
 
     rowsZipper = listToZipper rows

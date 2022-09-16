@@ -46,6 +46,7 @@ extractLowerBounds description = (compiler, version, dependencies)
     -- Also get the minimal compiler version
     (compiler, version) = getLowestCompiler dependencies . testedWith $ packageDescription description
 
+    getDependenciesFromTrees :: [(a1, CondTree v [Dependency] a2)] -> [Dependency]
     getDependenciesFromTrees = foldMap (condTreeConstraints . snd)
 
 
@@ -54,7 +55,7 @@ getLowestCompiler dependencies = \case
     [] -> let bases   = depVerRange <$> filter (("base" ==) . depPkgName) dependencies
               minBase = minimum $ versionLowerBound <$> bases
           in  (GHC, baseVersionToGHC ! minBase)
-    xs -> minimumBy (comparing snd) $ second versionLowerBound<$> xs
+    xs -> minimumBy (comparing snd) $ second versionLowerBound <$> xs
 
 
 baseVersionToGHC :: Map Version Version
@@ -100,8 +101,8 @@ versionLowerBound vRange =
             ThisVersionF            v -> v
             LaterVersionF           v -> v
             OrLaterVersionF         v -> v
-            EarlierVersionF         v -> defaultRange
-            OrEarlierVersionF       v -> defaultRange
+            EarlierVersionF         _ -> defaultRange
+            OrEarlierVersionF       _ -> defaultRange
             MajorBoundVersionF      v -> v
             UnionVersionRangesF     x y -> min x y
             IntersectVersionRangesF x y -> min x y

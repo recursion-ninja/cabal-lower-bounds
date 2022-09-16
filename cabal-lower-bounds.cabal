@@ -19,9 +19,10 @@ description:        Read in a cabal file and collect the lower bounds of all dep
                     
 
 tested-with:
-  GHC==9.2.3,
+  GHC==9.4.1,
+  GHC==9.2.4,
   GHC==9.0.2,
-  GHC==8.10.3,
+  GHC==8.10.7,
   GHC==8.8.4,
   GHC==8.6.5,
   GHC==8.4.4,
@@ -38,60 +39,62 @@ source-repository   head
 -- pitfalls, future compatibility issues, or coding conventions.
 common ghc-flags
 
+  default-language:
+    Haskell2010
+
   ghc-options:
+    -- Usability flags
+    -fdiagnostics-color=always
+    -fhide-source-paths
+    -j
+
     -- Optimization flags
     -O2
     -fexcess-precision
     -fexpose-all-unfoldings
     -flate-specialise
+    -fmax-simplifier-iterations=16
     -foptimal-applicative-do
+    -fspec-constr-count=8
+    -fspec-constr-keen
     -fspecialize-aggressively
     -fstatic-argument-transformation
-    -- Usability flags
-    -fdiagnostics-color=always
-    -fhide-source-paths
-    -j
+
     -- Sanity check warnings
-    -Wall
-    -Wcompat
-    -Wdodgy-foreign-imports
-    -Wduplicate-exports
-    -Wempty-enumerations
-    -Widentities
-    -Wincomplete-patterns
-    -Wincomplete-record-updates
-    -Wincomplete-uni-patterns
-    -Wmissed-specialisations          
-    -Wmissing-deriving-strategies          
-    -Wmissing-fields
-    -Wmissing-home-modules
-    -Wmissing-monadfail-instances
-    -Wmissing-signatures
-    -Wnoncanonical-monad-instances
-    -Wnoncanonical-monoid-instances
-    -Woverflowed-literals
-    -Woverlapping-patterns
-    -Wredundant-constraints
-    -Wsemigroup
-    -Wtabs
-    -Wunrecognised-warning-flags
-    -Wunused-binds
-    -Wunused-do-bind
-    -Wunused-foralls
-    -Wunused-imports
-    -Wunused-matches
-    -Wwrong-do-bind
+    --   1. Include all warnings by default
+    -Weverything
+    -Werror
+    --   2. Exclude the undesirable warnings
+    -Wno-all-missed-specialisations
+    -Wno-implicit-prelude
+    -Wno-inferred-safe-imports
+    -Wno-missed-specialisations
+    -Wno-missing-import-lists
+    -Wno-missing-safe-haskell-mode
+    -Wno-monomorphism-restriction
+    -Wno-type-defaults
+    -Wno-unsafe
+
+    -Wno-prepositive-qualified-module
 
   if impl(ghc >= 8.10)
     ghc-options:
       -Wderiving-defaults
       -Wunused-packages
 
+  if impl(ghc >=9.2)
+    ghc-options:
+      -Wno-missing-kind-signatures
+
+  if impl(ghc >=9.4)
+    ghc-options:
+      -Wredundant-strictness-flags
+
 
 executable cabal-lower-bounds
 
-  default-language:
-    Haskell2010
+  import:
+    ghc-flags
     
   main-is:        
     Main.hs
@@ -107,21 +110,27 @@ executable cabal-lower-bounds
 
 library
 
-  default-language:
-    Haskell2010
-
+  import:
+    ghc-flags
+    
   hs-source-dirs:
     src
 
   build-depends:
+    array         >= 0.5.4,
     base          >= 4.8.2  && < 5,
     bytestring    >= 0.10.6,
     Cabal         >= 3.0,
+    cabal-install-solver >= 3.8.1.0,
     containers    >= 0.5.6.1,
     deepseq       >= 1.4.1.1,
     filepath      >= 1.3.0.1,
-    parsec        >= 3.1.13
+--    parsec        >= 3.1.13,
+    pretty        >= 1.1.3.6,
+--    template-haskell,
 
   exposed-modules:
     Cabal.Package.Parse
     Cabal.Package.Dependencies
+    GHC.CoreLibraries
+    GHC.CompilerVersion
