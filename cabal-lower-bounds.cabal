@@ -75,6 +75,8 @@ common ghc-flags
     -Wno-type-defaults
     -Wno-unsafe
 
+    -Wno-missing-local-signatures
+
     -Wno-prepositive-qualified-module
 
   if impl(ghc >= 8.10)
@@ -134,3 +136,4 @@ library
     Cabal.Package.Dependencies
     GHC.CoreLibraries
     GHC.CompilerVersion
+    GHC.DistributionTable
