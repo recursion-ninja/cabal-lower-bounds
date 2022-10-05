@@ -17,7 +17,6 @@ module GHC.CompilerVersion
   , versionsOfGHC
   ) where
 
-import Control.Arrow ((***))
 import Control.Applicative
 import Control.DeepSeq
 import Control.Monad (guard)
@@ -25,7 +24,6 @@ import Data.Array.Unboxed
 import Data.Coerce (coerce)
 import Data.Char (digitToInt, isDigit, toUpper)
 import Data.Data (Data) 
-import Data.Function ((&))
 import Data.Functor (($>), void)
 import Data.List (intercalate)
 import Data.Foldable
@@ -33,6 +31,7 @@ import Data.Set (Set, fromDistinctAscList)
 import Data.Word (Word8)
 import Distribution.Pretty (Pretty(..))
 import Distribution.Solver.Compat.Prelude (Structured)
+import GHC.DistributionTable (Ordinal, VersionRank(..))
 import GHC.Generics (Generic)
 import GHC.IsList
 import Text.PrettyPrint (char, int, text)
@@ -40,7 +39,21 @@ import Text.Read
 import Text.ParserCombinators.ReadP (ReadP, satisfy)
 
 
-newtype CompilerVersion = CompilerVersion Word8
+{- |
+Represents a major release version of GHC.
+All 'CompilerVersion' values are /valid/, meaning it is impossible to create a 'CompilerVersion' which does not correspond to an officially published GHC version.
+
+Notably, the following of versions of GHC are excluded from the domain of 'CompilerVersion' values:
+
+  * GHC versions prior to @6.10.1@ 
+
+  * GHC alpha (@alpha@) versions
+
+  * GHC release candidates (@rc@) versions
+
+An enumeration of GHC versions in ascending order can be produced from 'versionsOfGHC'.
+-}
+newtype CompilerVersion = CompilerVersion Ordinal
     deriving stock   (Data, Generic)
     deriving newtype (Eq, Ix, NFData, Ord)
 
@@ -79,7 +92,7 @@ instance Enum CompilerVersion where
             j = ordinal w - i
             k = ordinal x - i
 
-            go :: Word8 -> Word8 -> [CompilerVersion]
+            go :: Ordinal -> Ordinal -> [CompilerVersion]
             go 0 e = [ CompilerVersion e ]
             go n e =   CompilerVersion e : go (n-1) (e + j)
         in  go (k `div` j) i
@@ -88,7 +101,7 @@ instance Enum CompilerVersion where
 instance Pretty CompilerVersion where
 
     pretty v =
-        let (# x, y, z #) = selectVersion v
+        let (# x, y, z #) = selectVersion $ coerce v
             ppi = int . fromEnum
             dot = char '.'
         in  fold [ text "GHC-", ppi x, dot, ppi y, dot, ppi z ]
@@ -123,6 +136,11 @@ instance Show CompilerVersion where
 instance Structured CompilerVersion
 
 
+{- |
+An enumeration of GHC versions in ascending order, starting from the 'minBound' of version  @6.10.1@ and ending at 'maxBound'. The polymorphic return type facilitates the construction of any appropriate 'IsList' structure.
+
+Rewrite rules exist to improve the construction of ordered containers such as 'Set'.
+-}
 versionsOfGHC 
   :: ( IsList (f CompilerVersion)
      , Item   (f CompilerVersion) ~ CompilerVersion
@@ -140,7 +158,7 @@ numbers for a single GHC version.
 
 Pre-computed as a compile-time constant.
 -} 
-compactEncoding :: Array (Word8, Word8) Word8
+compactEncoding :: Array (Ordinal, VersionRank) Word8
 compactEncoding =
     let versionSet :: Set (Word8, Word8, Word8)
         versionSet = fromDistinctAscList
@@ -182,7 +200,7 @@ compactEncoding =
             , ( 9,  4, 2 )
             ]
 
-        versionCount :: Word8
+        versionCount :: Ordinal
         versionCount = toEnum $ length versionSet
         
         versionFlat :: [Word8]
@@ -190,10 +208,10 @@ compactEncoding =
 
         flat :: (Word8, Word8, Word8) -> [Word8] -> [Word8]
         flat (x,y,z) = (x :) . (y :) . (z :)
-        
-        dimensions   = ( versionCount, 3 )
-        lowerBound   = ( 0, 0 ) :: (Word8, Word8)
-        upperBound   = dimensions & ( pred *** pred )
+
+        lowerBound, upperBound :: (Ordinal, VersionRank)
+        lowerBound   = ( 0, Major )
+        upperBound   = ( versionCount - 1, Patch )
     in  $$( [|| listArray (lowerBound, upperBound) versionFlat ||] )
 
 
@@ -208,7 +226,7 @@ knownVersion x y z =
             | lo > hi   = Nothing
             | otherwise =
                 let !md = (hi + lo) `div` 2
-                    (# i, j, k #) = selectIndex md
+                    (# i, j, k #) = selectVersion md
                     goRight = i < x || (i == x && (j < y || (j == y && k < z)))
                     goLeft  = i > x || (i == x && (j > y || (j == y && k > z)))
                 in  if   goRight
@@ -220,8 +238,9 @@ knownVersion x y z =
     in  go 0 (versionRank - 1)
 
 
-ordinal :: CompilerVersion -> Word8
+ordinal :: CompilerVersion -> Ordinal
 ordinal = coerce
+
 
 readPrecWord8 :: ReadPrec Word8
 readPrecWord8 =
@@ -239,12 +258,6 @@ readPrecWord8 =
     in  lift $ some (satisfy isDigit) >>= compute
 
 
-selectIndex :: Word8 -> (# Word8, Word8, Word8 #)
-selectIndex i =
-    let a x = compactEncoding ! (i, x)
-    in  (# a 0, a 1, a 2 #)
-
-
 selectRange
   :: ( IsList (f CompilerVersion)
      , Item   (f CompilerVersion) ~ CompilerVersion
@@ -259,11 +272,10 @@ selectRange i j
         in  fromListN count $ CompilerVersion <$> [ first .. final ]
     
 
-selectVersion :: CompilerVersion -> (# Word8, Word8, Word8 #)
-selectVersion v = 
-    let i = ordinal v
-        a x = compactEncoding ! (i, x)
-    in  (# a 0, a 1, a 2 #)
+selectVersion :: Ordinal -> (# Word8, Word8, Word8 #)
+selectVersion i = 
+    let ver x = compactEncoding ! (i, x)
+    in  (# ver Major, ver Minor, ver Patch #)
 
 
 {- |
@@ -275,6 +287,6 @@ versionRank = toEnum . force $ length compactEncoding `div` 3
 
 versionShowS :: CompilerVersion -> ShowS
 versionShowS v = 
-    let (# x, y, z #) = selectVersion v
+    let (# x, y, z #) = selectVersion $ coerce v
         str = fold [ "GHC-", show x, ".", show y, ".", show z ]
     in  showString str 

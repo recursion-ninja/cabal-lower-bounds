@@ -1,38 +1,44 @@
-cabal-version:      2.2
-category:           Tool
-build-type:         Simple
-name:               cabal-lower-bounds
-version:            0.2
-
-author:             Alex Washburn
-maintainer:         github@recursion.ninja
-license:            BSD-3-Clause
-license-file:       LICENSE
-copyright:          Copyright (C) 2020 Alex Washburn
-homepage:           https://github.com/recursion-ninja/cabal-lower-bounds
-bug-reports:        https://github.com/recursion-ninja/cabal-lower-bounds/issues
-
-synopsis:           Collect the lower bounds of all dependencies of a cabal project
-
-description:        Read in a cabal file and collect the lower bounds of all dependencies.
-                    Output the lower bounds in a format that is easy to convert into a project file.
-                    
-
-tested-with:
-  GHC==9.4.1,
-  GHC==9.2.4,
-  GHC==9.0.2,
-  GHC==8.10.7,
-  GHC==8.8.4,
-  GHC==8.6.5,
-  GHC==8.4.4,
-  GHC==8.2.2,
-  GHC==8.0.2,
+Cabal-Version:      2.2
+Name:               cabal-lower-bounds
+Version:            0.2
+Category:           Tool
+Stability:          Alpha
+Build-Type:         Simple
+Tested-With:
+  GHC==9.4.2
+  GHC==9.2.4
+  GHC==9.0.2
+  GHC==8.10.7
+  GHC==8.8.4
+  GHC==8.6.5
+  GHC==8.4.4
+  GHC==8.2.2
+  GHC==8.0.2
   GHC==7.10.3
 
-source-repository   head
-  type:             git
-  location:         git@github.com:recursion-ninja/cabal-lower-bounds.git
+Synopsis:
+  Collect the lower bounds of all dependencies of a cabal project
+
+Description:
+  Read in a cabal file and collect the lower bounds of all dependencies.
+  Output the lower bounds in a format that is easy to convert into a project file.
+                    
+Author:             Alex Washburn
+Copyright:          Copyright (C) 2020 Alex Washburn
+License:            BSD-3-Clause
+License-File:       LICENSE
+
+Maintainer:         github@recursion.ninja
+Homepage:           https://github.com/recursion-ninja/cabal-lower-bounds
+Bug-Reports:        https://github.com/recursion-ninja/cabal-lower-bounds/issues
+
+Source-Repository   head
+  Type:             git
+  Location:         git@github.com:recursion-ninja/cabal-lower-bounds.git
+
+--Data-Dir: data
+
+--Data-Files: distribution-versioning.csv
 
 
 -- A litany of GHC warnings designed to alert us during the build of any common
@@ -129,7 +135,10 @@ library
     filepath      >= 1.3.0.1,
 --    parsec        >= 3.1.13,
     pretty        >= 1.1.3.6,
---    template-haskell,
+    template-haskell >= 2.7.0.0,
+
+--  autogen-modules:
+--    Paths_cabal_lower_bounds
 
   exposed-modules:
     Cabal.Package.Parse
@@ -137,3 +146,8 @@ library
     GHC.CoreLibraries
     GHC.CompilerVersion
     GHC.DistributionTable
+
+  other-modules:
+    GHC.DistributionTable.Type
+    GHC.DistributionTable.Load
+--    Paths_cabal_lower_bounds
