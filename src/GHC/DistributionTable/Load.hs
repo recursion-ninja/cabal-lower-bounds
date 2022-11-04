@@ -17,7 +17,7 @@ module GHC.DistributionTable.Load
     loadHeader
   ) where
 
-import Control.Arrow (first)
+import Control.Arrow ((***), second)
 import Control.Monad ((<=<))
 import Data.Array
 import Data.Char (isSpace, toLower)
@@ -27,9 +27,15 @@ import Data.Tuple (swap)
 import Data.Maybe (fromMaybe)
 import GHC.DistributionTable.Type
 import Language.Haskell.TH.Syntax
+import Text.Read (readMaybe)
+
+--import Debug.Trace
 
 
-loadHeader :: Header
+type PVP = ( VersionPart, VersionPart, VersionPart, VersionPart )
+
+
+loadHeader :: (Header, Digest)
 loadHeader =
     let loadedVersioningDataText :: String
         loadedVersioningDataText = $(
@@ -38,8 +44,8 @@ loadHeader =
                 in  qAddDependentFile dataFile *> embedStr (readFile dataFile)
             )
 
-        precompiledVersioningData :: Header
-        precompiledVersioningData = fst $ readCSV loadedVersioningDataText
+        precompiledVersioningData :: (Header, Digest)
+        precompiledVersioningData = readCSV loadedVersioningDataText
 
     in $$( [|| precompiledVersioningData ||] )
 
@@ -57,9 +63,29 @@ parseErrorMessage str =  errorMessage $ "Parsing tabular data from CSV file\n\t\
 
 
 readCSV :: String -> (Header, Digest)
-readCSV inputString =
-    let (header, _dataRows) = first parseHeader $ parseTabularStructure inputString
-    in  header `seq` undefined
+readCSV = (parseHeader *** parseDigest) . parseTabularStructure
+
+
+makeDigest :: [[PVP]] -> Digest
+makeDigest versioningRows =
+    let fromPVP :: PVP -> [VersionPart]
+        fromPVP (w, x, y, z) = [ w, x, y, z ]
+        
+        measure :: (Enum e, Foldable f) => f a -> e
+        measure  = toEnum . pred . length
+
+        collapse :: [[PVP]] -> [VersionPart]
+        collapse = foldMap (foldMap fromPVP)
+
+        ghcLower = minBound
+        pkgLower = minBound
+        verLower = minBound
+        ghcUpper = measure versioningRows
+        pkgUpper = measure $ head versioningRows
+        verUpper = maxBound
+        lower    = (ghcLower, pkgLower, verLower)
+        upper    = (ghcUpper, pkgUpper, verUpper)
+    in  Digest . listArray (lower, upper) $ collapse versioningRows
 
 
 makeHeader :: [String] -> Header
@@ -73,29 +99,59 @@ makeHeader packages =
    CSV Parsing functions
 ------ ----- ---- --- -- -}
 
-
 parseTabularStructure :: String -> (String, [String])
 parseTabularStructure =
     let compileTimeError = errorMessage "Empty file...!?"
     in  fromMaybe compileTimeError . uncons . lines
 
 
-parseRow :: String -> Either Word [String]
-parseRow = parseRowCSV '"' ','
+parseDigest :: [String] -> Digest
+parseDigest =
+    let groupByFour :: Word -> Word -> [String] -> [PVP]
+        groupByFour i j = \case
+            []          -> []
+            [_]         -> groupErrorMessage i j 1
+            [_,_]       -> groupErrorMessage i j 2
+            [_,_,_]     -> groupErrorMessage i j 3
+            w:x:y:z:aft -> case validateVersion w x y z of
+                Nothing -> readsErrorMessage i j
+                Just parts -> parts : groupByFour i (j + 1) aft
+
+        validateVersion
+          :: String
+          -> String
+          -> String
+          -> String
+          -> Maybe PVP
+        validateVersion w x y z = (,,,)
+            <$> readMaybe w
+            <*> readMaybe x
+            <*> readMaybe y
+            <*> readMaybe z
+
+        errorPrefix i j = fold [ "Data row", show i, ", package number ", show j ]
+        cellsErrorMessage i j   = parseErrorMessage $ fold [ "CSV error: row ", show i, ", cell ", show j ]
+        groupErrorMessage i j k = parseErrorMessage $ fold [ errorPrefix i j, ", found only (", show k, "/4)"]
+        readsErrorMessage i j   = parseErrorMessage $ fold [ errorPrefix i j, "Read error of version parts" ]
+
+        assembleRow :: Word -> String -> [PVP]
+        assembleRow i = either (cellsErrorMessage i) (groupByFour i 1) . parseRow
+
+    in  makeDigest . zipWith assembleRow [ 1 .. ]
 
 
 parseHeader :: String -> Header
 parseHeader =
     let groupByFour i = \case
-            []           -> []
-            [_]          -> groupErrorMessage i 1
-            [_,_]        -> groupErrorMessage i 2
-            [_,_,_]      -> groupErrorMessage i 3
-            w:x:y:z:next -> case validateSuffixes w x y z of
+            []          -> []
+            [_]         -> groupErrorMessage i 1
+            [_,_]       -> groupErrorMessage i 2
+            [_,_,_]     -> groupErrorMessage i 3
+            w:x:y:z:aft -> case validateSuffixes w x y z of
                 Nothing -> ranksErrorMessage i
                 Just names -> case validateColumnID names of
                     Nothing -> namesMessage i
-                    Just name -> name : groupByFour (i + 1) next
+                    Just name -> name : groupByFour (i + 1) aft
 
         validateColumnID (w, x, y, z)
             | all (== w) [x,y,z] = Just w
@@ -109,10 +165,11 @@ parseHeader =
 
         suffixing :: VersionRank -> String -> Maybe String
         suffixing rank entity =
-            let expect = ('_' :) $ toLower <$> show rank
+            let normal = fmap toLower
+                expect = ('_' :) . normal $ show rank
                 expectLen = length expect
                 entityLen = length entity
-                (prefix, actual) = splitAt (entityLen - expectLen) entity
+                (prefix, actual) = second normal $ splitAt (entityLen - expectLen) entity
             in  if expect == actual
                 then Just prefix
                 else Nothing
@@ -127,6 +184,10 @@ parseHeader =
             fold [ errorPrefix i, ", all four names are not the same"]
 
     in  either cellsErrorMessage (makeHeader . groupByFour 1) . parseRow
+
+
+parseRow :: String -> Either Word [String]
+parseRow = parseRowCSV '"' ','
 
 
 parseRowCSV

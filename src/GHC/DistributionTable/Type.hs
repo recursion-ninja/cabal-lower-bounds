@@ -48,12 +48,12 @@ import Text.ParserCombinators.ReadP (ReadP, satisfy)
 
 newtype Digest = Digest (Array (Ordinal, PackageRank, VersionRank) VersionPart)
     deriving stock   (Data, Generic)
-    deriving newtype (Eq, NFData, Ord)
+    deriving newtype (Eq, NFData, Ord, Show)
 
 
 newtype Header = Header (Array Ordinal String)
     deriving stock   (Data, Generic)
-    deriving newtype (Eq, NFData, Ord)
+    deriving newtype (Eq, NFData, Ord, Show)
 
 
 {- |
