@@ -17,6 +17,7 @@ module GHC.CompilerVersion
   , versionsOfGHC
   ) where
 
+
 import Control.Applicative
 import Control.DeepSeq
 import Control.Monad (guard)
@@ -27,11 +28,10 @@ import Data.Data (Data)
 import Data.Functor (($>), void)
 import Data.List (intercalate)
 import Data.Foldable
-import Data.Set (Set, fromDistinctAscList)
 import Data.Word (Word8)
 import Distribution.Pretty (Pretty(..))
 import Distribution.Solver.Compat.Prelude (Structured)
-import GHC.DistributionTable (Ordinal, VersionRank(..))
+import GHC.DistributionTable (Ordinal, VersionRank(..), versionTable)
 import GHC.Generics (Generic)
 import GHC.IsList
 import Text.PrettyPrint (char, int, text)
@@ -148,72 +148,6 @@ versionsOfGHC
   => f CompilerVersion
 versionsOfGHC = fromListN versionRank $ CompilerVersion <$> [ 0 .. versionRank - 1 ]
 
-  
-{- |
-A compact encoding of the "modern" GHC versions.
-
-An unboxed array of bytes with dimension equal to three times the number of GHC
-versions. Each interval of three bytes store the major, minor, and patch version
-numbers for a single GHC version.
-
-Pre-computed as a compile-time constant.
--} 
-compactEncoding :: Array (Ordinal, VersionRank) Word8
-compactEncoding =
-    let versionSet :: Set (Word8, Word8, Word8)
-        versionSet = fromDistinctAscList
-            [ ( 6, 10, 1 )
-            , ( 6, 10, 4 )
-            , ( 6, 12, 1 )
-            , ( 6, 12, 2 )
-            , ( 6, 12, 3 )
-            , ( 7,  0, 1 )
-            , ( 7,  0, 4 )
-            , ( 7,  2, 1 )
-            , ( 7,  2, 2 )
-            , ( 7,  4, 1 )
-            , ( 7,  4, 2 )
-            , ( 7,  6, 1 )
-            , ( 7,  6, 2 )
-            , ( 7,  8, 2 )
-            , ( 7,  8, 3 )
-            , ( 7,  8, 4 )
-            , ( 7, 10, 1 )
-            , ( 7, 10, 2 )
-            , ( 7, 10, 3 )
-            , ( 8,  0, 1 )
-            , ( 8,  0, 2 )
-            , ( 8,  2, 1 )
-            , ( 8,  2, 2 )
-            , ( 8,  4, 1 )
-            , ( 8,  4, 4 )
-            , ( 8,  6, 5 )
-            , ( 8,  8, 4 )
-            , ( 8, 10, 3 )
-            , ( 9,  0, 1 )
-            , ( 9,  0, 2 )
-            , ( 9,  2, 1 )
-            , ( 9,  2, 2 )
-            , ( 9,  2, 3 )
-            , ( 9,  2, 4 )
-            , ( 9,  4, 1 )
-            , ( 9,  4, 2 )
-            ]
-
-        versionCount :: Ordinal
-        versionCount = toEnum $ length versionSet
-        
-        versionFlat :: [Word8]
-        versionFlat = foldr flat [] versionSet
-
-        flat :: (Word8, Word8, Word8) -> [Word8] -> [Word8]
-        flat (x,y,z) = (x :) . (y :) . (z :)
-
-        lowerBound, upperBound :: (Ordinal, VersionRank)
-        lowerBound   = ( 0, Major )
-        upperBound   = ( versionCount - 1, Patch )
-    in  $$( [|| listArray (lowerBound, upperBound) versionFlat ||] )
-
 
 knownVersion :: Word8 -> Word8 -> Word8 -> Maybe CompilerVersion
 knownVersion x y z =
@@ -274,15 +208,17 @@ selectRange i j
 
 selectVersion :: Ordinal -> (# Word8, Word8, Word8 #)
 selectVersion i = 
-    let ver x = compactEncoding ! (i, x)
+    let ver x = fromIntegral $ versionTable ! (i, 0, x)
     in  (# ver Major, ver Minor, ver Patch #)
 
 
 {- |
 The number of /known/ GHC versions.
 -}
-versionRank :: Enum e => e
-versionRank = toEnum . force $ length compactEncoding `div` 3
+versionRank :: Integral i => i
+versionRank =
+  let ~(~(!rowLower, _, _), ~(!rowUpper, _, _)) = bounds versionTable
+  in  fromIntegral $ fromEnum rowUpper - fromEnum rowLower
 
 
 versionShowS :: CompilerVersion -> ShowS

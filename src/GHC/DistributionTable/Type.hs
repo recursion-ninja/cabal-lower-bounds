@@ -14,8 +14,8 @@
 module GHC.DistributionTable.Type
   ( -- * Data-types
     -- ** Tabular Structures
-    Header(..)
-  , Digest(..)
+    Header()
+  , Digest()
     -- ** Indices
   , Ordinal()
   , PackageRank()
@@ -38,7 +38,8 @@ import Data.Foldable
 import Data.Maybe (catMaybes)
 import Data.Word (Word8, Word16)
 import Distribution.Pretty (Pretty(..))
-import Distribution.Solver.Compat.Prelude (Structured)
+import Distribution.Solver.Modular.Package (PackageName)
+import Distribution.Solver.Compat.Prelude (Binary, Structured)
 import GHC.Generics (Generic)
 import Language.Haskell.TH.Syntax (Lift)
 import Text.PrettyPrint (int, text)
@@ -46,14 +47,10 @@ import Text.Read
 import Text.ParserCombinators.ReadP (ReadP, satisfy)
 
 
-newtype Digest = Digest (Array (Ordinal, PackageRank, VersionRank) VersionPart)
-    deriving stock   (Data, Generic)
-    deriving newtype (Eq, NFData, Ord, Show)
+type Digest = UArray (Ordinal, PackageRank, VersionRank) Word16
 
 
-newtype Header = Header (Array Ordinal String)
-    deriving stock   (Data, Generic)
-    deriving newtype (Eq, NFData, Ord, Show)
+type Header = Array PackageRank PackageName
 
 
 {- |
@@ -62,7 +59,7 @@ Ordinal indices begin at \( 0 \) and end at \( n - 1 \), where \( n \) is the ca
 -}
 newtype Ordinal = Ordinal Word8
     deriving stock   (Data, Generic, Lift)
-    deriving newtype (Bounded, Enum, Eq, Integral, Ix, NFData, Num, Ord, Read, Real, Show)
+    deriving newtype (Binary, Bounded, Enum, Eq, Integral, Ix, NFData, Num, Ord, Read, Real, Show)
 
 
 {- |
@@ -72,12 +69,12 @@ Serves as a linear index for the \(2^{nd}\) dimension of the 'Digest' pre-comput
 -}
 newtype PackageRank = PackageRank Word8
     deriving stock   (Data, Generic, Lift)
-    deriving newtype (Bounded, Enum, Eq, Integral, Ix, NFData, Num, Ord, Read, Real, Show)
+    deriving newtype (Binary, Bounded, Enum, Eq, Integral, Ix, NFData, Num, Ord, Read, Real, Show)
 
 
 newtype VersionPart = VersionPart Word16
     deriving stock   (Data, Generic, Lift)
-    deriving newtype (Bounded, Enum, Eq, NFData, Ord)
+    deriving newtype (Binary, Bounded, Enum, Eq, NFData, Ord)
 
 
 {- |

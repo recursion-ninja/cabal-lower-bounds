@@ -13,18 +13,23 @@
 
 
 module GHC.DistributionTable.Load
-  ( -- * Important
-    loadHeader
+  ( -- * Core Template Haskell
+    loadDistributionTable
+    -- * Useful Accessors
+  , packageIndex
+  , versionTable
   ) where
 
 import Control.Arrow ((***), second)
 import Control.Monad ((<=<))
-import Data.Array
+import Data.Array.Unboxed
 import Data.Char (isSpace, toLower)
 import Data.List (uncons)
 import Data.Foldable
 import Data.Tuple (swap)
 import Data.Maybe (fromMaybe)
+import Data.Word (Word16)
+import Distribution.Solver.Modular.Package (mkPackageName)
 import GHC.DistributionTable.Type
 import Language.Haskell.TH.Syntax
 import Text.Read (readMaybe)
@@ -32,11 +37,11 @@ import Text.Read (readMaybe)
 --import Debug.Trace
 
 
-type PVP = ( VersionPart, VersionPart, VersionPart, VersionPart )
+type PVP = ( Word16, Word16, Word16, Word16 )
 
 
-loadHeader :: (Header, Digest)
-loadHeader =
+loadDistributionTable :: (Header, Digest)
+loadDistributionTable =
     let loadedVersioningDataText :: String
         loadedVersioningDataText = $(
                 let dataFile = "data/distribution-versioning.csv"
@@ -48,6 +53,14 @@ loadHeader =
         precompiledVersioningData = readCSV loadedVersioningDataText
 
     in $$( [|| precompiledVersioningData ||] )
+
+
+packageIndex :: Header
+packageIndex = fst loadDistributionTable
+
+
+versionTable :: Digest
+versionTable = snd loadDistributionTable
 
 
 moduleName :: String
@@ -68,13 +81,13 @@ readCSV = (parseHeader *** parseDigest) . parseTabularStructure
 
 makeDigest :: [[PVP]] -> Digest
 makeDigest versioningRows =
-    let fromPVP :: PVP -> [VersionPart]
+    let fromPVP :: PVP -> [Word16]
         fromPVP (w, x, y, z) = [ w, x, y, z ]
         
         measure :: (Enum e, Foldable f) => f a -> e
         measure  = toEnum . pred . length
 
-        collapse :: [[PVP]] -> [VersionPart]
+        collapse :: [[PVP]] -> [Word16]
         collapse = foldMap (foldMap fromPVP)
 
         ghcLower = minBound
@@ -85,14 +98,14 @@ makeDigest versioningRows =
         verUpper = maxBound
         lower    = (ghcLower, pkgLower, verLower)
         upper    = (ghcUpper, pkgUpper, verUpper)
-    in  Digest . listArray (lower, upper) $ collapse versioningRows
+    in  listArray (lower, upper) $ collapse versioningRows
 
 
 makeHeader :: [String] -> Header
 makeHeader packages =
     let lower = minBound
         upper = toEnum $ length packages - 1
-    in  Header $ listArray (lower, upper) packages
+    in  listArray (lower, upper) $ mkPackageName <$> packages
 
 
 {- -- --- ---- ----- ------

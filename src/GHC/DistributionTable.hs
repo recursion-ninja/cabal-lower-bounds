@@ -25,7 +25,8 @@ module GHC.DistributionTable
   , VersionPart()
   , partNumber
     -- * Pre-computed Lookup Table
-  , loadHeader
+  , packageIndex
+  , versionTable
   ) where
 
 import GHC.DistributionTable.Type

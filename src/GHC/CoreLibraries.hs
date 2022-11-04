@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -6,10 +8,13 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE TypeOperators #-}
 
 module GHC.CoreLibraries
   ( CoreLibrary()
   , CoreLibraryVersion(..)
+    -- * Core functionality
+  , coreLibraries
   , coreLibraryName
   , isCoreLibrary
   ) where
@@ -18,16 +23,21 @@ import           Control.DeepSeq
 import           Data.Coerce
 import           Data.Data (Data)
 --import           Data.Foldable
-import           Data.Set (Set)
-import qualified Data.Set as Set
-import           Data.String(IsString)
+import Data.Array.IArray
+import Data.Maybe (isJust)
+--import           Data.String(IsString)
 --import           Data.Map.Strict                                     (Map, (!))
 --import qualified Data.Map.Strict                              as Map
 --import           Data.Vector.Unboxed (Vector)
 --import           Distribution.Compiler
 --import           Distribution.Parsec (Parsec)
+--import           GHC.CompilerVersion
+--import           GHC.DistributionTable (Ordinal, PackageRank, VersionRank(..), packageIndex)
+import           GHC.DistributionTable ( PackageRank, packageIndex)
+--import           GHC.Generics (Generic)
+import           GHC.IsList
 import           Distribution.Pretty (Pretty)
-import           Distribution.Solver.Modular.Package
+import           Distribution.Solver.Modular.Package (PackageName)
 import           Distribution.Solver.Compat.Prelude (Binary, Structured)
 --import           Distribution.Types.CondTree
 --import           Distribution.Types.Dependency
@@ -42,7 +52,7 @@ import           GHC.Generics (Generic)
 baseVersionToGHC :: Map Version Version
 baseVersionToGHC = Map.fromList $ (mkVersion *** mkVersion) <$> mapping
   where
-    mapping = 
+    mapping =
         [ ([4, 0,0,0], [6,10,1])
         , ([4, 1,0,0], [6,10,4])
         , ([4, 2,0,0], [6,12,1])
@@ -82,18 +92,43 @@ baseVersionToGHC = Map.fromList $ (mkVersion *** mkVersion) <$> mapping
         ]
 -}
 
-newtype CoreLibrary = CoreLib PackageName
+newtype CoreLibrary = CoreLib PackageRank
     deriving stock (Data, Generic)
-    deriving newtype (Binary, Eq, Ord, IsString, NFData, Pretty, Read, Show, Structured)
+    deriving newtype (Binary, Eq, Ord, NFData, Pretty, Structured)
+    -- TODO:
+    --   - IsString (throw exception)
+    --   - Pretty   (ignore PackageRank)
+    --   - Read     (throw exception)
+    --   - Show     (ignore PackageRank)
+    --   - 
 
 
 newtype CoreLibraryVersion = CoreLibraryVersion Version
 
 
+{- |
+An enumeration of GHC versions in ascending order, starting from the 'minBound' of version  @6.10.1@ and ending at 'm\
+axBound'. The polymorphic return type facilitates the construction of any appropriate 'IsList' structure.
+
+Rewrite rules exist to improve the construction of ordered containers such as 'Set'.
+-}
+coreLibraries
+  :: ( IsList (f CoreLibrary)
+     , Item   (f CoreLibrary) ~ CoreLibrary
+     )
+  => f CoreLibrary
+coreLibraries = fromListN coreLibraryRank $ CoreLib <$> [ 0 .. coreLibraryRank - 1 ]
+
+
+coreLibraryName :: CoreLibrary -> PackageName
+coreLibraryName = (packageIndex !) . coerce  
+
+
 isCoreLibrary :: PackageName -> Bool
-isCoreLibrary p = coerce p `Set.member` coreLibraries
+isCoreLibrary = isJust . findPackageRank
 
 
+{-
 coreLibraries :: Set CoreLibrary
 coreLibraries = Set.fromList $ CoreLib <$>
     [ "ghc"
@@ -131,15 +166,40 @@ coreLibraries = Set.fromList $ CoreLib <$>
     , "unix"
     , "xhtml"
     ]
+-}
 
 
-coreLibraryName :: CoreLibrary -> PackageName
-coreLibraryName = coerce
+{- |
+The number of /known/ GHC versions.
+-}
+coreLibraryRank :: Integral i => i
+coreLibraryRank =
+  let ~(!rowLower, !rowUpper) = bounds packageIndex
+  in  fromIntegral $ fromEnum rowUpper - fromEnum rowLower
 
 
-newtype CompilerVersion = CompilerVersion Version
-    deriving stock (Data, Generic)
-    deriving newtype (Binary, Eq, Ord, NFData, Pretty, Read, Show, Structured)
+findPackageRank :: PackageName -> Maybe PackageRank
+findPackageRank pkgName | pkgName == packageIndex ! 0 = Just 0
+findPackageRank pkgName | pkgName == packageIndex ! 1 = Just 1
+findPackageRank pkgName | pkgName == packageIndex ! 2 = Just 2
+findPackageRank pkgName =
+    let -- Perform a binary search on the pre-computed compile-time constant
+        -- array to determine if a package name is valid.
+        --
+        -- Equally fast, and uses less memory than a Set.
+        {-# INLINE go #-}
+        go !lo !hi
+            | lo > hi   = Nothing
+            | otherwise =
+                let !md = (hi + lo) `div` 2
+                    curName = packageIndex ! md
+                in  case pkgName `compare` curName of
+                        EQ -> Just $ fromIntegral md
+                        GT -> go  (md + 1)  hi
+                        LT -> go   lo      (md - 1)
+        lower = 3
+        upper = pred . snd $ bounds packageIndex
+    in  go lower upper
 
 
 --librariesIncludedWithGHC :: Map CompilerVersion (Map CoreLibrary CoreLibraryVersion)
