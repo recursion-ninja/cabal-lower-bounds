@@ -29,7 +29,7 @@ import Data.Foldable
 import Data.Tuple (swap)
 import Data.Maybe (fromMaybe)
 import Data.Word (Word16)
-import Distribution.Solver.Modular.Package (mkPackageName)
+import Distribution.Types.PackageName (mkPackageName)
 import GHC.DistributionTable.Type
 import Language.Haskell.TH.Syntax
 import Text.Read (readMaybe)

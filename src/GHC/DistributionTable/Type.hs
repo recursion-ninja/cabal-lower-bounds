@@ -38,7 +38,7 @@ import Data.Foldable
 import Data.Maybe (catMaybes)
 import Data.Word (Word8, Word16)
 import Distribution.Pretty (Pretty(..))
-import Distribution.Solver.Modular.Package (PackageName)
+import Distribution.Types.PackageName (PackageName)
 import Distribution.Solver.Compat.Prelude (Binary, Structured)
 import GHC.Generics (Generic)
 import Language.Haskell.TH.Syntax (Lift)

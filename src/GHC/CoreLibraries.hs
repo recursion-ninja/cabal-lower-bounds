@@ -20,32 +20,35 @@ module GHC.CoreLibraries
   ) where
 
 import           Control.DeepSeq
+import Control.Applicative
 import           Data.Coerce
 import           Data.Data (Data)
---import           Data.Foldable
+--import           Data.Foldable (fold)
 import Data.Array.IArray
+import Data.List (intercalate)
 import Data.Maybe (isJust)
---import           Data.String(IsString)
+import           Data.String(IsString(..))
 --import           Data.Map.Strict                                     (Map, (!))
 --import qualified Data.Map.Strict                              as Map
 --import           Data.Vector.Unboxed (Vector)
 --import           Distribution.Compiler
 --import           Distribution.Parsec (Parsec)
---import           GHC.CompilerVersion
---import           GHC.DistributionTable (Ordinal, PackageRank, VersionRank(..), packageIndex)
-import           GHC.DistributionTable ( PackageRank, packageIndex)
---import           GHC.Generics (Generic)
-import           GHC.IsList
-import           Distribution.Pretty (Pretty)
-import           Distribution.Solver.Modular.Package (PackageName)
-import           Distribution.Solver.Compat.Prelude (Binary, Structured)
 --import           Distribution.Types.CondTree
 --import           Distribution.Types.Dependency
 --import           Distribution.Types.GenericPackageDescription        (GenericPackageDescription(..))
 --import           Distribution.Types.PackageDescription               (testedWith)
 import           Distribution.Types.Version
 --import           Distribution.Types.VersionRange
+--import           GHC.CompilerVersion
+--import           GHC.DistributionTable (Ordinal, PackageRank, VersionRank(..), packageIndex)
+import           GHC.DistributionTable (PackageRank, packageIndex)
 import           GHC.Generics (Generic)
+import           GHC.IsList
+import           Distribution.Pretty (Pretty(..))
+import           Distribution.Types.PackageName (PackageName, mkPackageName, unPackageName)
+import           Distribution.Solver.Compat.Prelude (Binary, Structured)
+import Text.PrettyPrint (text)
+import Text.Read
 
 
 {-
@@ -94,16 +97,55 @@ baseVersionToGHC = Map.fromList $ (mkVersion *** mkVersion) <$> mapping
 
 newtype CoreLibrary = CoreLib PackageRank
     deriving stock (Data, Generic)
-    deriving newtype (Binary, Eq, Ord, NFData, Pretty, Structured)
+    deriving newtype (Binary, Eq, Ord, NFData, Structured)
     -- TODO:
     --   - IsString (throw exception)
     --   - Pretty   (ignore PackageRank)
     --   - Read     (throw exception)
     --   - Show     (ignore PackageRank)
-    --   - 
 
 
 newtype CoreLibraryVersion = CoreLibraryVersion Version
+    deriving stock (Data, Generic)
+    deriving newtype (Binary, Eq, Ord, NFData, Pretty, Structured, Show)
+
+
+instance IsString CoreLibrary where
+
+    fromString query =
+        let errorMsg = error $
+                "GHC.CoreLibraries.fromString: The package '" <> query <> "' is not a GHC core library!"
+        in  maybe errorMsg CoreLib . findPackageRank $ mkPackageName query
+
+
+instance Pretty CoreLibrary where
+
+    pretty = text . unPackageName . coreLibraryName
+
+    prettyVersioned = const pretty
+
+
+instance Read CoreLibrary where
+
+    readPrec = do
+        Ident pkg <- lexP
+        maybe empty (pure . CoreLib) . findPackageRank $ mkPackageName pkg
+
+    readListPrec = readListPrecDefault
+
+
+instance Show CoreLibrary where
+
+    show = (`libraryShowS` "")
+
+    showsPrec = const libraryShowS
+
+    showList pkgs =
+        let listing :: String
+            listing = intercalate ", " $ show <$> pkgs
+            wrapped :: String
+            wrapped = "[ " <> listing <> " ]"
+        in  showString wrapped
 
 
 {- |
@@ -117,65 +159,27 @@ coreLibraries
      , Item   (f CoreLibrary) ~ CoreLibrary
      )
   => f CoreLibrary
-coreLibraries = fromListN coreLibraryRank $ CoreLib <$> [ 0 .. coreLibraryRank - 1 ]
+coreLibraries = fromListN coreLibraryRank $ CoreLib <$> [ 0 .. coreLibraryRank ]
 
 
 coreLibraryName :: CoreLibrary -> PackageName
-coreLibraryName = (packageIndex !) . coerce  
+coreLibraryName = (packageIndex !) . coerce
 
 
 isCoreLibrary :: PackageName -> Bool
 isCoreLibrary = isJust . findPackageRank
 
 
-{-
-coreLibraries :: Set CoreLibrary
-coreLibraries = Set.fromList $ CoreLib <$>
-    [ "ghc"
-    , "Cabal"
-    , "Win32"
-    , "array"
-    , "base"
-    , "binary"
-    , "bytestring"
-    , "containers"
-    , "deepseq"
-    , "directory"
-    , "exceptions"
-    , "filepath"
-    , "ghc-boot-th"
-    , "ghc-boot"
-    , "ghc-compact"
-    , "ghc-heap"
-    , "ghc-prim"
-    , "ghci"
-    , "haskeline"
-    , "hpc"
-    , "integer-gmp"
-    , "libiserv"
-    , "mtl"
-    , "parsec"
-    , "pretty"
-    , "process"
-    , "stm"
-    , "template-haskell"
-    , "terminfo"
-    , "text"
-    , "time"
-    , "transformers"
-    , "unix"
-    , "xhtml"
-    ]
--}
+
 
 
 {- |
-The number of /known/ GHC versions.
+The number of /known/ GHC core library packages.
 -}
 coreLibraryRank :: Integral i => i
 coreLibraryRank =
-  let ~(!rowLower, !rowUpper) = bounds packageIndex
-  in  fromIntegral $ fromEnum rowUpper - fromEnum rowLower
+  let ~(_, !rowUpper) = bounds packageIndex
+  in  fromIntegral $ fromEnum rowUpper
 
 
 findPackageRank :: PackageName -> Maybe PackageRank
@@ -198,11 +202,15 @@ findPackageRank pkgName =
                         GT -> go  (md + 1)  hi
                         LT -> go   lo      (md - 1)
         lower = 3
-        upper = pred . snd $ bounds packageIndex
+        upper = coreLibraryRank
     in  go lower upper
 
 
---librariesIncludedWithGHC :: Map CompilerVersion (Map CoreLibrary CoreLibraryVersion)
+libraryShowS :: CoreLibrary -> ShowS
+libraryShowS = showString . unPackageName . coreLibraryName
+
+
+--librariesIncludedWithGHC :: Map CompilerVarsion (Map CoreLibrary CoreLibraryVersion)
 
 
 {-
