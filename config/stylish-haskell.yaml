@@ -1,0 +1,46 @@
+cabal: false
+columns: 110
+newline: lf
+
+steps:
+
+  - imports:
+      align: none
+      empty_list_align: inherit
+      ghc_lib_parser: false
+      list_align: repeat
+      long_list_align: inline
+      pad_module_names: false
+      post_qualify: false
+      separate_lists: false
+      space_surround: false
+
+  - language_pragmas:
+      align: false
+      language_prefix: Language
+      remove_redundant: true
+      style: vertical
+
+  - module_header:
+       indent: 4
+       sort: true
+
+  - records:
+      break_enums: true
+      break_single_constructors: false
+      curried_context: false
+      deriving: 4
+      equals: "indent 4"
+      first_field: "indent 4"
+      field_comment: 2
+      sort_deriving: true
+      via: "indent 4"
+
+  - simple_align:
+      cases: always
+      multi_way_if: always
+      top_level_patterns: always
+      records: always
+      
+  - trailing_whitespace: {}
+

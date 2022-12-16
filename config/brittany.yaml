@@ -1,0 +1,26 @@
+conf_errorHandling:
+    econf_ExactPrintFallback: ExactPrintFallbackModeRisky
+    econf_omit_output_valid_check: True
+
+conf_layout:
+    lconfig_alignmentBreakOnMultiline: True
+    lconfig_alignmentLimit: 48
+    lconfig_allowHangingQuasiQuotes: False
+    lconfig_allowSingleLineExportList: False
+    lconfig_altChooser:
+        tag: AltChooserBoundedSearch
+        contents: 256
+    lconfig_cols: 110
+    lconfig_columnAlignMode:
+        tag: ColumnAlignModeAlways
+    lconfig_experimentalSemicolonNewlines: False
+    lconfig_hangingTypeSignature: False
+    lconfig_indentAmount: 4
+    lconfig_indentPolicy: IndentPolicyMultiple
+    lconfig_indentWhereSpecial: False
+    lconfig_reformatModulePreamble: False
+
+conf_preprocessor:
+    ppconf_CPPMode: CPPModeNowarn
+
+conf_roundtrip_exactprint_only: False

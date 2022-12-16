@@ -1,0 +1,21 @@
+# Email addresses
+[a-z]+\@recursion.ninja
+
+# URL matcher
+(((ht|f)tp(s?))\://)?(www.|[a-zA-Z].)?[a-zA-Z0-9\-\.]+\.\w+(\:[0-9]+)*(/($|[a-zA-Z0-9\.\,\;\?\'\\\+&amp;%\$#\=~_\-]+))*
+
+# Weird false positives
+Alike
+Pandoc
+bibfile
+bottom
+configurable
+estimate
+import(ant(ly)?)?
+left
+module
+qualified
+right
+rule
+template
+version
