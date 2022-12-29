@@ -16,11 +16,13 @@ module GHC.Distribution
     , distributionOf
       -- * Accessors
     , distributedLibrary
+    , distributedPackageId
     , distributedVersion
       -- * Queries
     , hasCompilerVersions
     ) where
 
+import Control.Arrow ((&&&))
 import Control.DeepSeq
 import Data.Array.Unboxed
 import Data.Coerce (coerce)
@@ -33,6 +35,7 @@ import Distribution.Compat.Prelude (Binary)
 import Distribution.Compat.Semigroup ((<>))
 #endif
 import Distribution.Pretty (Pretty(..))
+import Distribution.Types.PackageId (PackageIdentifier(PackageIdentifier))
 import Distribution.Types.Version (Version, mkVersion, versionNumbers)
 import Distribution.Utils.Structured (Structured)
 import GHC.CompilerVersion.Type
@@ -117,6 +120,21 @@ Extract the 'CoreLibrary' from an identified 'CoreLibraryDistribution'.
 {-# INLINE distributedLibrary #-}
 distributedLibrary :: CoreLibraryDistribution -> CoreLibrary
 distributedLibrary = _distributedLibrary
+
+
+{-|
+Convert 'CoreLibraryDistribution' to a 'PackageIdentifier'.
+
+/Time:/ \(\, \mathcal{O} \left( 1 \right) \)
+
+/Since:/ 1.0.0
+-}
+{-# INLINE distributedPackageId #-}
+distributedPackageId :: CoreLibraryDistribution -> PackageIdentifier
+distributedPackageId =
+    let pkg = coreLibraryName . _distributedLibrary
+        ver = distributedVersion
+    in  uncurry PackageIdentifier . (pkg &&& ver)
 
 
 {-|
