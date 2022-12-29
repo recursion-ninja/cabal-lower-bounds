@@ -43,8 +43,8 @@ import Distribution.Compat.Prelude (Binary)
 #else
 import Distribution.Compat.Semigroup ((<>))
 #endif
-import Distribution.Pretty (Pretty(..))
 import Distribution.Types.PackageName (PackageName)
+import Distribution.Pretty (Pretty(..))
 import Distribution.Utils.Structured (Structured)
 import GHC.Generics (Generic)
 import Language.Haskell.TH.Syntax (Lift)
@@ -170,7 +170,7 @@ versionPartShowS :: VersionPart -> ShowS
 versionPartShowS = let f x y = x <> y in f . maybe "empty" show . partNumber
 
 
-readPrecBounded :: forall a. (Bounded a, Enum a) => ReadPrec a
+readPrecBounded :: forall a . (Bounded a, Enum a) => ReadPrec a
 readPrecBounded =
     let check :: Int -> ReadP a
         check n = guard (n <= limit) $> toEnum n

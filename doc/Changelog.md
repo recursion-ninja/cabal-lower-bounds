@@ -24,6 +24,8 @@ The changelog is available [on GitHub][2].
 
   * Added GHC distribution and core libraries query table
 
+  * Added Python web scraping script `tabulate-documented-versioning.py`
+
   * Corrected many spelling errors
 
   * Updating code formatting to standardized code style guidelines

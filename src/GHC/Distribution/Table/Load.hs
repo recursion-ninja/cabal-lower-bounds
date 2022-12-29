@@ -48,15 +48,10 @@ loadDistributionTable :: (Header, Digest)
 loadDistributionTable =
     let loadedVersioningDataText :: String
         loadedVersioningDataText =
-
-
-
-                             $(
-                                        let dataFile = "data/distribution-versioning.csv"
-                                            embedStr = fmap (LitE . StringL)  . runIO
-                                        in  qAddDependentFile dataFile *> embedStr (readFile dataFile)
-                                    )
-
+            $(  let dataFile = "data/distribution-versioning.csv"
+                    embedStr = fmap (LitE . StringL)  . runIO
+                in  qAddDependentFile dataFile *> embedStr (readFile dataFile)
+            )
         precompiledVersioningData :: (Header, Digest)
         precompiledVersioningData = readCSV loadedVersioningDataText
     in  $$( [|| precompiledVersioningData ||] )
@@ -138,9 +133,13 @@ parseDigest =
                 Just parts -> parts : groupByFour i (j + 1) aft
 
         validateVersion :: String -> String -> String -> String -> Maybe PVP
-        validateVersion w x y z = (,,,) <$> readMaybe w <*> readMaybe x <*> readMaybe y <*> readMaybe z
+        validateVersion w x y z =
+            let parsePart = \case
+                    [] -> Just maxBound
+                    xs -> readMaybe xs
+            in  (,,,) <$> parsePart w <*> parsePart x <*> parsePart y <*> parsePart z
 
-        errorPrefix i j = fold ["Data row", show i, ", package number ", show j]
+        errorPrefix i j = fold ["Data row ", show i, ", package number ", show j, " "]
         cellsErrorMessage i j = parseErrorMessage $ fold ["CSV error: row ", show i, ", cell ", show j]
         groupErrorMessage i j k = parseErrorMessage $ fold [errorPrefix i j, ", found only (", show k, "/4)"]
         readsErrorMessage i j = parseErrorMessage $ fold [errorPrefix i j, "Read error of version parts"]
