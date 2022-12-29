@@ -10,7 +10,7 @@ Synopsis:
 Description:
   Read in a cabal file and collect the lower bounds of all dependencies.
   Output the lower bounds in a format that is easy to convert into a project file.
-                    
+
 Author:             Alex Washburn
 Copyright:          Copyright (C) 2020 Alex Washburn
 License:            BSD-3-Clause
@@ -20,10 +20,6 @@ Maintainer:         github@recursion.ninja
 Homepage:           https://github.com/recursion-ninja/cabal-lower-bounds
 Bug-Reports:        https://github.com/recursion-ninja/cabal-lower-bounds/issues
 
-Source-Repository   head
-  Type:             git
-  Location:         git@github.com:recursion-ninja/cabal-lower-bounds.git
-
 Category:
   Build Tool
   CLI
@@ -31,22 +27,23 @@ Category:
   Package Management
 
 Tested-With:
-  GHC==9.4.3
-  GHC==9.2.5
-  GHC==9.0.2
-  GHC==8.10.7
-  GHC==8.8.4
-  GHC==8.6.5
-  GHC==8.4.4
-  GHC==8.2.2
+  GHC == 9.4.4
+  GHC == 9.2.5
+  GHC == 9.0.2
+  GHC == 8.10.7
+  GHC == 8.8.4
+  GHC == 8.6.5
+  GHC == 8.4.4
+  GHC == 8.2.2
 
 Extra-Doc-Files:
   doc/CHANGELOG.md
   doc/README.md
 
---Data-Dir: data
-
---Data-Files: distribution-versioning.csv
+Source-Repository   head
+  Branch:           master
+  Location:         git@github.com:recursion-ninja/cabal-lower-bounds.git
+  Type:             git
 
 
 -- A litany of GHC warnings designed to alert us during the build of any common
@@ -60,10 +57,8 @@ Common ghc-flags
     -- Usability flags
     -fdiagnostics-color=always
     -fhide-source-paths
-    -j
 
     -- Optimization flags
-    -O2
     -fexcess-precision
     -fexpose-all-unfoldings
     -fmax-simplifier-iterations=16
@@ -76,7 +71,6 @@ Common ghc-flags
     -- Sanity check warnings
     --   1. Include all warnings by default
     -Weverything
-    -Werror
     --   2. Exclude the undesirable warnings
     -Wno-all-missed-specialisations
     -Wno-implicit-prelude
@@ -89,7 +83,7 @@ Common ghc-flags
 
   if impl(ghc >= 8.6)
     ghc-options:
-    -flate-specialise
+      -flate-specialise
 
   if impl(ghc >= 8.10)
     ghc-options:
@@ -112,8 +106,8 @@ Executable cabal-lower-bounds
 
   import:
     ghc-flags
-    
-  main-is:        
+
+  main-is:
     Main.hs
 
   hs-source-dirs:
@@ -129,7 +123,7 @@ Library
 
   import:
     ghc-flags
-    
+
   hs-source-dirs:
     src
 
@@ -154,7 +148,7 @@ Library core-library-versioning
 
   import:
     ghc-flags
-    
+
   hs-source-dirs:
     src
 
